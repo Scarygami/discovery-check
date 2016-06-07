@@ -1,0 +1,4 @@
+cron:
+- description: regular update job
+  url: /update_docs
+  schedule: every 30 minutes

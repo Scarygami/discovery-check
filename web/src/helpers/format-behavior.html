@@ -1,0 +1,29 @@
+<script>
+  window.ApiBehaviors = window.ApiBehaviors || {};
+
+  /** @polymerBehavior ApiBehaviors.FormatBehavior */
+  window.ApiBehaviors.FormatBehavior = {
+    shorten: function (s) {
+      if (s && s.length >= 10) {
+        return s.substr(0, 10) + '...';
+      }
+      return s;
+    },
+
+    timeDisplay: function (time) {
+      if (!time) { return 'never'; }
+      var date = new Date(time);
+
+      var y = date.getFullYear().toString();
+      var m = (date.getMonth() + 1).toString();
+      var d = date.getDate().toString();
+      var h = date.getHours().toString();
+      var min = date.getMinutes().toString();
+
+      var tmp = y + '-' + (m[1] ? m : '0' + m[0]) + '-' + (d[1] ? d : '0' + d[0]) + ' ';
+      tmp += (h[1] ? h : '0' + h[0]) + ':' + (min[1] ? min : '0' + min[0]);
+
+      return tmp;
+    }
+  };
+</script>

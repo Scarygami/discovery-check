@@ -1,0 +1,321 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
+
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/iron-icons/hardware-icons.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../bower_components/iron-collapse/iron-collapse.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/paper-item/paper-item-body.html">
+
+<link rel="import" href="helpers/format-behavior.html">
+
+<dom-module id="api-docs">
+  <template>
+    <style>
+      #main {
+        @apply(--layout-fit);
+        padding: 10px;
+      }
+
+      paper-card {
+        width: 100%;
+        height: 100%;
+        @apply(--layout-vertical);
+      }
+
+      .card-header {
+        position: relative;
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
+        overflow: hidden;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 5px 18px;
+        font-size: 18px;
+      }
+
+      .row {
+        @apply(--layout-horizontal);
+        @apply(--layout-center);
+      }
+
+      .header {
+        background-color: #FF8;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .row > div {
+        @apply(--layout-flex);
+      }
+
+      #docs {
+        @apply(--layout-flex);
+        overflow-y: scroll;
+        padding: 16px;
+      }
+
+      #docs > div {
+        margin-top: 16px;
+      }
+
+      paper-item-body > div {
+        white-space: normal;
+        word-wrap: break-word;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+    </style>
+    <firebase-document path="[[_firebasePath(version.key, version.versionKey, version.latest)]]" data="{{_doc}}"></firebase-document>
+    <div id="main">
+      <paper-card hidden$="[[_hasVersion(version)]]">
+        <div class="card-content">
+          Loading data, please wait...
+        </div>
+      </paper-card>
+      <paper-card hidden$="[[!_hasVersion(version)]]">
+        <div class="card-header row">
+          <div>[[version.name]] [[version.version]] - [[version.title]]</div>
+          <a href="/" tab-index="-1">
+            <paper-icon-button icon="clear" title="Close details"></paper-icon-button>
+          </a>
+        </div>
+        <div id="docs">
+          <template is="dom-if" if="[[_apiDescription.methods]]">
+            <div class="row header" on-tap="_toggleMethods">
+              <div>API Methods</div>
+              <paper-icon-button icon="[[_toggleIcon(_methodsOpened)]]"></paper-icon-button>
+            </div>
+            <iron-collapse opened="{{_methodsOpened}}">
+              <template is="dom-repeat" items="[[_apiDescription.methods]]">
+                <paper-item>
+                  <paper-item-body two-line>
+                    <div><code>[[item.name]]</code> - [[item.description]]</div>
+                    <div secondary>[[item.method]] [[_apiDescription.rootUrl]][[_apiDescription.servicePath]][[item.path]]</div>
+                  </paper-item-body>
+                </paper-item>
+              </template>
+            </iron-collapse>
+          </template>
+
+          <template is="dom-if" if="[[_apiDescription.objects]]">
+            <div class="row header" on-tap="_toggleObjects">
+              <div>API Objects</div>
+              <paper-icon-button icon="[[_toggleIcon(_objectsOpened)]]"></paper-icon-button>
+            </div>
+            <iron-collapse opened="{{_objectsOpened}}">
+              <template is="dom-repeat" items="[[_apiDescription.objects]]">
+                <paper-item>
+                  <paper-item-body two-line>
+                    <div><code>[[item.name]]</code></div>
+                    <div secondary>[[item.description]]</div>
+                  </paper-item-body>
+                </paper-item>
+              </template>
+            </iron-collapse>
+          </template>
+
+          <template is="dom-if" if="[[_apiDescription.scopes]]">
+            <div class="row header" on-tap="_toggleScopes">
+              <div>OAuth 2.0 Scopes</div>
+              <paper-icon-button icon="[[_toggleIcon(_scopesOpened)]]"></paper-icon-button>
+            </div>
+            <iron-collapse opened="{{_scopesOpened}}">
+              <template is="dom-repeat" items="[[_apiDescription.scopes]]">
+                <paper-item>
+                  <paper-item-body two-line>
+                    <div><code>[[item.scope]]</code></div>
+                    <div secondary>[[item.description]]</div>
+                  </paper-item-body>
+                </paper-item>
+              </template>
+            </iron-collapse>
+          </template>
+        </div>
+      </paper-card>
+    </div>
+  </template>
+  <script>
+
+    Polymer({
+      is: 'api-docs',
+
+      properties: {
+        version: {
+          type: Object,
+          observer: '_versionChanged'
+        },
+
+        sharedElements: {
+          type: Object,
+          value: function() {
+            return {
+              'hero': this.$.main
+            };
+          }
+        },
+
+        animationConfig: {
+          type: Object,
+          value: function() {
+            return {
+              'entry': [{
+                name: 'hero-animation',
+                id: 'hero',
+                toPage: this
+              }],
+              'exit': [{
+                name: 'scale-down-animation',
+                node: this.$.main,
+                transformOrigin: '50% 50%',
+                axis: 'y'
+              }]
+            };
+          }
+        },
+
+        _doc: {
+          type: String,
+          observer: '_docChanged'
+        },
+        _apiDescription: Object
+      },
+
+      // Workaround for https://github.com/PolymerElements/neon-animation/pull/149
+      listeners: {
+        'iron-select': '_onIronSelect'
+      },
+      _onIronSelect: function (e) {
+        e.stopPropagation();
+      },
+
+      behaviors: [
+        Polymer.NeonAnimatableBehavior,
+        window.ApiBehaviors.FormatBehavior
+      ],
+
+      _hasVersion: function (version) {
+        return (!!version);
+      },
+
+      _versionChanged: function () {
+        this.set('_scopesOpened', false);
+        this.set('_methodsOpened', false);
+      },
+
+      _firebasePath: function (api, version, revision) {
+        if (!api || !version || !revision) {
+          return null;
+        }
+        return '/apiDocs/' + api + '/' + version + '/' + revision;
+      },
+
+      _prepareDoc: function (doc) {
+        if (!doc || typeof doc !== 'string') { return ''; }
+        var json = JSON.parse(doc);
+        var docs = {};
+
+        if (json.auth && json.auth.oauth2 && json.auth.oauth2.scopes) {
+          docs.scopes = Object.keys(json.auth.oauth2.scopes).map(function (scope) {
+            return {
+              scope: scope,
+              description: json.auth.oauth2.scopes[scope].description
+            };
+          });
+        }
+
+        if (json.resources || json.methods) {
+
+          var methods = this._parseMethods('', {
+            'resources': json.resources,
+            'methods': json.methods
+          });
+
+          docs.methods = methods;
+        }
+
+        if (json.schemas) {
+          docs.objects = this._parseObjects(json.schemas);
+        }
+
+        docs.rootUrl = json.rootUrl;
+        docs.servicePath = json.servicePath;
+
+        return docs;
+      },
+
+      _parseMethods: function (resourceName, resource) {
+        var methods = [];
+        if (resource.methods) {
+          Object.keys(resource.methods).forEach(function (method) {
+            var name = method;
+            if (resourceName) {
+              name = resourceName + '.' + name;
+            }
+            methods.push({
+              name: name,
+              description: resource.methods[method].description,
+              method: resource.methods[method].httpMethod,
+              path: resource.methods[method].path
+            });
+          });
+        }
+
+        if (resource.resources) {
+          Object.keys(resource.resources).forEach(function (subResource) {
+            var name = subResource;
+            if (resourceName) {
+              name = resourceName + '.' + name;
+            }
+            methods = methods.concat(
+              this._parseMethods(name, resource.resources[subResource])
+            );
+          }, this);
+        }
+
+        return methods;
+      },
+
+      _parseObjects: function (schemas) {
+        var objects = [];
+        Object.keys(schemas).forEach(function (schema) {
+          objects.push({
+            name: schema,
+            description: schemas[schema].description
+          });
+        });
+
+        return objects;
+      },
+
+      _docChanged: function () {
+        this.set('_apiDescription', this._prepareDoc(this._doc));
+      },
+
+      _toggleIcon: function (opened) {
+        if (opened) {
+          return 'hardware:keyboard-arrow-up';
+        }
+        return 'hardware:keyboard-arrow-down';
+      },
+
+      _toggleScopes: function () {
+        this.set('_scopesOpened', !this._scopesOpened);
+      },
+
+      _toggleMethods: function () {
+        this.set('_methodsOpened', !this._methodsOpened);
+      },
+
+      _toggleObjects: function () {
+        this.set('_objectsOpened', !this._objectsOpened);
+      }
+
+    });
+  </script>
+</dom-module>

@@ -1,0 +1,340 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
+<link rel="import" href="../bower_components/paper-menu/paper-menu.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
+
+<link rel="import" href="helpers/format-behavior.html">
+
+<dom-module id="api-diff">
+  <template>
+    <style>
+      pre {
+        font-size: 12px;
+        line-height: normal;
+        white-space: pre-wrap;
+        white-space: -moz-pre-wrap;
+        white-space: -pre-wrap;
+        white-space: -o-pre-wrap;
+        word-wrap: break-word;
+        margin: 0;
+      }
+
+      #main {
+        @apply(--layout-fit);
+        padding: 10px;
+      }
+
+      paper-card {
+        width: 100%;
+        height: 100%;
+
+        @apply(--layout-vertical);
+      }
+
+      .card-header {
+        position: relative;
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
+        overflow: hidden;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 5px 18px;
+        font-size: 18px;
+      }
+
+      .card-content {
+        @apply(--layout-vertical);
+      }
+
+      .row {
+        @apply(--layout-horizontal);
+        @apply(--layout-center);
+      }
+
+      .row > div {
+        @apply(--layout-flex);
+      }
+
+      .row > paper-dropdown-menu {
+        @apply(--layout-flex);
+        margin: 0px 10px;
+      }
+
+      pre[removed] {
+        color: #C00;
+        text-decoration: line-through;
+      }
+
+      pre[added] {
+        color: #060;
+        font-weight: bold;
+      }
+
+      #diff {
+        @apply(--layout-flex);
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+    <firebase-document path="[[_firebasePath(api.key, _version1, _rev1)]]" data="{{_doc1}}"></firebase-document>
+    <firebase-document path="[[_firebasePath(api.key, _version2, _rev2)]]" data="{{_doc2}}"></firebase-document>
+    <div id="main">
+      <paper-card hidden$="[[_hasApi(api)]]">
+        <div class="card-content">
+          Loading data, please wait...
+        </div>
+      </paper-card>
+      <paper-card hidden$="[[!_hasApi(api)]]">
+        <div class="card-header row">
+          <div>[[api.name]] - [[api.title]]</div>
+          <a href="/" tab-index="-1">
+            <paper-icon-button icon="clear" title="Close details"></paper-icon-button>
+          </a>
+        </div>
+        <div class="card-content">
+          <div class="row">
+            <paper-dropdown-menu selected-item="{{_selectedRevision1}}" id="revision1" label="Compare docs">
+              <paper-menu class="dropdown-content">
+                <template is="dom-repeat" items="[[docs]]">
+                  <paper-item version="[[item.versionKey]]" revision="[[item.revision]]">
+                    [[item.version]] - [[shorten(item.revision)]] ([[timeDisplay(item.updated)]])
+                  </paper-item>
+                </template>
+              </paper-menu>
+            </paper-dropdown-menu>
+            <paper-dropdown-menu selected-item="{{_selectedRevision2}}" id="revision2" label="to">
+              <paper-menu class="dropdown-content">
+                <template is="dom-repeat" items="[[docs]]">
+                  <paper-item version="[[item.versionKey]]" revision="[[item.revision]]">
+                    [[item.version]] - [[shorten(item.revision)]] ([[timeDisplay(item.updated)]])
+                  </paper-item>
+                </template>
+              </paper-menu>
+            </paper-dropdown-menu>
+            <paper-checkbox checked="{{_diffOnly}}">Changes only</paper-checkbox>
+          </div>
+        </div>
+        <div id="diff">
+          <template is="dom-if" if="[[!_diff]]">
+            Calculating diff, please wait...
+          </template>
+          <template is="dom-repeat" items="[[_diff]]" filter="[[_computeFilter(_diffOnly)]]">
+            <pre added$="[[item.added]]" removed$="[[item.removed]]">[[item.value]]</pre>
+          </template>
+        </div>
+      </paper-card>
+    </div>
+  </template>
+  <script>
+
+    Polymer({
+      is: 'api-diff',
+
+      properties: {
+        api: {
+          type: Object,
+          observer: '_apiChanged'
+        },
+        docs: {
+          type: Array,
+          computed: '_docs(api.versions)',
+          observer: '_docsChanged'
+        },
+
+        sharedElements: {
+          type: Object,
+          value: function() {
+            return {
+              'hero': this.$.main
+            };
+          }
+        },
+
+        animationConfig: {
+          type: Object,
+          value: function() {
+            return {
+              'entry': [{
+                name: 'hero-animation',
+                id: 'hero',
+                toPage: this
+              }],
+              'exit': [{
+                name: 'scale-down-animation',
+                node: this.$.main,
+                transformOrigin: '50% 50%',
+                axis: 'y'
+              }]
+            };
+          }
+        },
+
+        _selectedRevision1: {
+          type: Object,
+          observer: '_revisionsChanged'
+        },
+        _selectedRevision2: {
+          type: Object,
+          observer: '_revisionsChanged'
+        },
+        _version1: String,
+        _version2: String,
+        _rev1: String,
+        _rev2: String,
+        _doc1: {
+          type: String,
+          observer: '_doc1Changed'
+        },
+        _doc2: {
+          type: String,
+          observer: '_doc2Changed'
+        },
+        _cleanedDoc1: String,
+        _cleanedDoc2: String,
+        _diff: Array,
+        _diffOnly: Boolean
+      },
+
+      observers: [
+        '_computeDiff(_cleanedDoc1, _cleanedDoc2)'
+      ],
+
+      // Workaround for https://github.com/PolymerElements/neon-animation/pull/149
+      listeners: {
+        'iron-select': '_onIronSelect'
+      },
+      _onIronSelect: function (e) {
+        e.stopPropagation();
+      },
+
+      behaviors: [
+        Polymer.NeonAnimatableBehavior,
+        window.ApiBehaviors.FormatBehavior
+      ],
+
+      ready: function () {
+        this._diffWorker = new Worker(this.resolveUrl('helpers/diff-worker.js'));
+        this._diffWorker.onmessage = this._diffResponse.bind(this);
+      },
+
+      _hasApi: function (api) {
+        return (!!api);
+      },
+
+      _diffResponse: function (e) {
+        this.set('_diff', e.data);
+      },
+
+      _docs: function (versions) {
+        var docs = [];
+        if (!!versions) {
+          versions.forEach(function (version) {
+            version.revisions.forEach(function (revision) {
+              docs.push({
+                version: version.version,
+                versionKey: version.versionKey,
+                revision: revision.revision,
+                updated: revision.updated
+              });
+            });
+          });
+        }
+        docs.sort(function (a, b) {
+          if (a.version < b.version) { return 1; }
+          if (b.version < a.version) { return -1; }
+          if (a.updated < b.updated) { return 1; }
+          if (b.updated < a.updated) { return -1; }
+          if (a.revision < b.revision) { return 1; }
+          if (b.revision < a.revision) { return -1; }
+          return 0;
+        });
+        return docs;
+      },
+
+      _docsChanged: function () {
+        this.$.revision1.contentElement.selected = undefined;
+        this.$.revision2.contentElement.selected = undefined;
+        if (this.docs && this.docs.length > 0) {
+          this.async(function () {
+            this.$.revision1.contentElement.selected = 0;
+            this.$.revision2.contentElement.selected = ((this.docs.length > 1) ? 1 : 0);
+          }, 1);
+        }
+      },
+
+      _apiChanged: function () {
+        this._cleanedDoc1 = '';
+        this._cleanedDoc2 = '';
+        this._diffOnly = false;
+      },
+
+      _revisionsChanged: function () {
+        if (this._selectedRevision1) {
+          this._version1 = this._selectedRevision1.version;
+          this._rev1 = this._selectedRevision1.revision;
+        } else {
+          this._version1 = null;
+          this._rev1 = null;
+        }
+        if (this._selectedRevision2) {
+          this._version2 = this._selectedRevision2.version;
+          this._rev2 = this._selectedRevision2.revision;
+        } else {
+          this._version2 = null;
+          this._rev2 = null;
+        }
+      },
+
+      _firebasePath: function (api, version, revision) {
+        if (!api || !version || !revision) {
+          return null;
+        }
+        return '/apiDocs/' + api + '/' + version + '/' + revision;
+      },
+
+      _cleanDoc: function (doc) {
+        if (!doc || typeof doc !== 'string') { return ''; }
+        var json = JSON.parse(doc);
+        json.cleanName = undefined;
+        json.cleanVersion = undefined;
+        json.cleanRevision = undefined;
+        return JSON.stringify(json, undefined, 2);
+      },
+
+      _doc1Changed: function () {
+        this.set('_cleanedDoc1', this._cleanDoc(this._doc1));
+      },
+
+      _doc2Changed: function () {
+        this.set('_cleanedDoc2', this._cleanDoc(this._doc2));
+      },
+
+      _computeDiff: function (doc1, doc2) {
+        this.set('_diff', null);
+        if (!doc1) { return; }
+        if (!doc2) { return; }
+
+        this._diffWorker.postMessage([doc1, doc2]);
+      },
+
+      _computeFilter: function (diffOnly) {
+        if (!diffOnly) {
+          return null;
+        }
+
+        return function (diff) {
+          return (diff.added || diff.removed);
+        };
+      }
+    });
+  </script>
+</dom-module>

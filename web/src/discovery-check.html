@@ -1,0 +1,208 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../bower_components/app-route/app-location.html">
+<link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-app.html">
+<link rel="import" href="../bower_components/polymerfire/firebase-document.html">
+
+<link rel="import" href="../bower_components/paper-header-panel/paper-header-panel.html">
+<link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
+<link rel="import" href="../bower_components/neon-animation/neon-animated-pages.html">
+<link rel="import" href="../bower_components/neon-animation/neon-animations.html">
+<link rel="import" href="../bower_components/neon-animation/neon-animatable-behavior.html">
+
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+
+<dom-module id="discovery-check">
+  <template>
+    <style>
+      :host {
+        display: block;
+        @apply(--layout-fullbleed);
+        @apply(--paper-font-body1);
+      }
+
+      paper-toolbar {
+        --paper-toolbar-title: {
+          margin-left: 0px !important;
+          line-height: 1.1;
+        };
+      }
+
+      neon-animated-pages {
+        @apply(--layout-fit);
+      }
+    </style>
+
+    <firebase-app
+      database-url="https://your-firebase.firebaseio.com"
+      auth-domain="your-firebase.firebaseapp.com"
+      api-key="your-firebase-api-key"></firebase-app>
+
+    <firebase-document
+      path="/apis"
+      data="{{firebaseApis}}"></firebase-document>
+
+    <app-location route="{{route}}"></app-location>
+    <app-route route="{{route}}" pattern="/:page" data="{{routeData}}"></app-route>
+    <app-route route="{{route}}" pattern="/diff/:api" data="{{apiData}}"></app-route>
+    <app-route route="{{route}}" pattern="/docs/:api/:version" data="{{versionData}}"></app-route>
+    <paper-header-panel>
+      <paper-toolbar>
+        <div class="title">Google APIs Discovery Check</div>
+      </paper-toolbar>
+      <neon-animated-pages id="pages" attr-for-selected="page" selected="[[routeData.page]]">
+        <apis-list page="" apis=[[apis]]></apis-list>
+        <api-diff page="diff" api="[[getApiData(apis, apiData.api)]]"></api-diff>
+        <api-docs page="docs" version="[[getVersionData(apis, versionData.api, versionData.version)]]"></api-docs>
+      </neon-animated-pages>
+    </paper-header-panel>
+  </template>
+
+  <script>
+    // Array.prototype.findIndex polyfill just in case
+    if (!Array.prototype.findIndex) {
+      Array.prototype.findIndex = function(predicate) {
+        if (this === null) {
+          throw new TypeError('Array.prototype.findIndex called on null or undefined');
+        }
+        if (typeof predicate !== 'function') {
+          throw new TypeError('predicate must be a function');
+        }
+        var list = Object(this);
+        var length = list.length >>> 0;
+        var thisArg = arguments[1];
+        var value;
+
+        for (var i = 0; i < length; i++) {
+          value = list[i];
+          if (predicate.call(thisArg, value, i, list)) {
+            return i;
+          }
+        }
+        return -1;
+      };
+    }
+
+    Polymer({
+      is: 'discovery-check',
+
+      properties: {
+        route: Object,
+        routeData: Object,
+        apiData: Object,
+        versionData: Object,
+
+        firebaseApis: Object,
+
+        apis: {
+          type: Array,
+          computed: '_computeApis(firebaseApis)'
+        }
+      },
+
+      observers: [
+        '_pageChanged(routeData.page)'
+      ],
+
+      _pageChanged: function (page) {
+        var importUrl = '';
+
+        switch(page) {
+          case '':
+            importUrl = 'apis-list.html';
+            break;
+          case 'docs':
+            importUrl = 'api-docs.html';
+            break;
+          case 'diff':
+            importUrl = 'api-diff.html';
+            break;
+        }
+
+        if (!importUrl) { return; }
+
+        this.importHref(
+          this.resolveUrl(importUrl), null, null, true
+        );
+      },
+
+      _computeApis: function (firebaseApis) {
+        if (!firebaseApis) {
+          return [];
+        }
+
+        var apis = [];
+
+        Object.keys(firebaseApis).forEach(function (name) {
+          var fbApi = firebaseApis[name];
+          var api = {
+            key: name,
+            name: fbApi.name,
+            title: fbApi.title,
+            description: fbApi.description,
+            versions: []
+          };
+
+          Object.keys(fbApi.versions).forEach(function (version) {
+
+            var fbVersion = fbApi.versions[version];
+
+            var apiVersion = {
+              key: name,
+              versionKey: version,
+              name: fbApi.name,
+              version: fbVersion.version,
+              title: fbVersion.title,
+              description: fbVersion.description,
+              documentation: fbVersion.documentation,
+              latest: fbVersion.latest,
+              updated: fbVersion.updated,
+              revisions: []
+            };
+
+            Object.keys(fbVersion.revisions).forEach(function (rev) {
+              apiVersion.revisions.push({
+                revision: rev,
+                updated: fbVersion.revisions[rev] 
+              });
+            });
+
+            api.versions.push(apiVersion);
+          });
+
+          apis.push(api);
+        });
+
+        return apis;
+      },
+
+      getApiData: function (apis, cleanName) {
+        if (!apis || apis.length === 0) {
+          return null;
+        }
+        var index = apis.findIndex(function (api) {
+          return (api.key === cleanName);
+        });
+        if (index >= 0) {
+          return apis[index];
+        }
+        return null;
+      },
+
+      getVersionData: function (apis, cleanApi, cleanVersion) {
+        var api = this.getApiData(apis, cleanApi);
+        if (!api) {
+          return null;
+        }
+        var index = api.versions.findIndex(function (version) {
+          return (version.versionKey === cleanVersion);
+        });
+        if (index >= 0) {
+          return api.versions[index];
+        }
+        return null;
+      }
+    });
+  </script>
+</dom-module>

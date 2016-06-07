@@ -1,0 +1,9 @@
+{
+  "entrypoint": "index.html",
+  "shell": "src/discovery-check.html",
+  "fragments": [
+    "src/apis-list.html",
+    "src/api-diff.html",
+    "src/api-docs.html"
+  ]
+}

@@ -1,0 +1,233 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+
+<link rel="import" href="../bower_components/paper-input/paper-input.html">
+<link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/paper-item/paper-item.html">
+<link rel="import" href="../bower_components/paper-item/paper-item-body.html">
+
+<link rel="import" href="helpers/format-behavior.html">
+
+<dom-module id="apis-list">
+  <template>
+    <style>
+      #main {
+        @apply(--layout-fit);
+        padding: 10px;
+        overflow-y: auto;
+      }
+
+      #main > * {
+        width: 100%;
+        max-width: 800px;
+        margin: 5px auto;
+      }
+
+      paper-card {
+        display: block;
+      }
+
+      .card-header {
+        position: relative;
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
+        overflow: hidden;
+        border-bottom: 1px solid #e8e8e8;
+        padding: 5px 18px;
+        font-size: 18px;
+      }
+
+      .row {
+        @apply(--layout-horizontal);
+        @apply(--layout-center);
+      }
+
+      .row > div, .row > paper-input {
+        @apply(--layout-flex);
+      }
+
+      paper-item {
+        font-size: 14px;
+      }
+
+      paper-item-body.title {
+        font-size: 1.2em;
+      }
+
+      [highlight] {
+        background-color: #FF8;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      [invisible] {
+        visibility: hidden;
+      }
+    </style>
+
+    <div id="main">
+      <div class="row">
+        <paper-input label="Search" value="{{_search}}"></paper-input>
+        <paper-checkbox checked="{{_changedOnly}}">Recently changed</paper-checkbox>
+      </div>
+      <template is="dom-if" if="[[!apis.length]]">
+        <paper-card>
+          <div class="card-content">Loading APIs, please wait...</div>
+        </paper-card>
+      </template>
+      <template is="dom-repeat" items="[[apis]]"
+                filter="[[_computeFilter(_search, _changedOnly)]]"
+                sort="[[_computeSort(_changedOnly)]]">
+        <paper-card>
+          <div class="card-header row">
+            <div>[[item.name]] - [[item.title]]</div>
+            <a href="/diff/[[item.key]]" tabindex="-1">
+              <paper-icon-button
+                icon="compare-arrows"
+                title="Compare versions/revisions"
+                on-click="_prepareAnimation"
+              ></paper-icon-button>
+            </a>
+          </div>
+          <div class="card-content" role="list">
+            <div class="row">
+              <div>[[item.description]]<br><br></div>
+            </div>
+            <template is="dom-repeat" items="[[item.versions]]" as="version" index-as="versionIndex">
+              <paper-item role="listitem" highlight$="[[!_outdated(version.updated)]]">
+                <paper-item-body class="title">
+                  Version [[version.version]]
+                </paper-item-body>
+                <paper-item-body two-line>
+                  <div>Revision: [[shorten(version.latest)]]</div>
+                  <div secondary>([[timeDisplay(version.updated)]])</div>
+                </paper-item-body>
+                <a href="[[version.documentation]]"
+                   target="_blank"
+                   invisible$="[[!version.documentation]]"
+                   tabindex="-1"><paper-icon-button icon="launch" title="Official documentation"></paper-icon-button></a>
+                <a href="/docs/[[version.key]]/[[version.versionKey]]" tabindex="-1">
+                  <paper-icon-button
+                    icon="description"
+                    title="API docs"
+                    on-click="_prepareAnimation"
+                  ></paper-icon-button>
+                </a>
+              </paper-item>
+            </template>
+          </div>
+        </paper-card>
+      </template>
+    </div>
+  </template>
+  <script>
+    Polymer({
+      is: 'apis-list',
+
+      properties: {
+        apis: Array,
+
+        animationConfig: {
+          type: Object,
+          value: function() {
+            return {
+              'exit': [{
+                name: 'hero-animation',
+                id: 'hero',
+                fromPage: this
+              }]
+            };
+          }
+        },
+
+        _search: String,
+        _changedOnly: Boolean
+      },
+
+      behaviors: [
+        Polymer.NeonAnimatableBehavior,
+        window.ApiBehaviors.FormatBehavior
+      ],
+
+      _prepareAnimation: function (e) {
+        var target = e.target;
+        while (target !== this && !target._templateInstance) {
+          target = target.parentNode;
+        }
+        // configure the page animation
+        this.sharedElements = {
+          'hero': target,
+        };
+      },
+
+      _outdated: function (time) {
+        if (!time) { return true; }
+        var now = (new Date()).getTime();
+        var ts = (new Date(time)).getTime();
+        return (now - ts >= 604800000);
+      },
+
+      _computeFilter: function (search, changedOnly) {
+        if (!search && !changedOnly) {
+          return null;
+        }
+        search = search.toLowerCase();
+        return function (api) {
+          if (search) {
+            if (
+              api.name.toLowerCase().indexOf(search) < 0 &&
+              api.title.toLowerCase().indexOf(search) < 0
+            ) {
+              return false;
+            }
+          }
+          if (!changedOnly) {
+            return true;
+          }
+          for (var i = 0; i < api.versions.length; i++) {
+            if (!this._outdated(api.versions[i].updated)) {
+              return true;
+            }
+          }
+          return false;
+        }.bind(this);
+      },
+
+      _computeSort: function (changedOnly) {
+        if (!changedOnly) {
+          return null;
+        }
+        return function (api1, api2) {
+          var time1 = '';
+          var time2 = '';
+
+          for (var i = 0; i < api1.versions.length; i++) {
+            if (api1.versions[i].updated > time1) {
+              time1 = api1.versions[i].updated;
+            }
+          }
+
+          for (i = 0; i < api2.versions.length; i++) {
+            if (api2.versions[i].updated > time1) {
+              time2 = api2.versions[i].updated;
+            }
+          }
+
+          if (time1 === time2) {
+            return 0;
+          }
+
+          if (time1 > time2) {
+            return -1;
+          }
+
+          return 1;
+        };
+      }
+    });
+  </script>
+</dom-module>
