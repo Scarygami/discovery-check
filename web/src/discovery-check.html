@@ -2,6 +2,7 @@
 
 <link rel="import" href="../bower_components/app-route/app-location.html">
 <link rel="import" href="../bower_components/app-route/app-route.html">
+<link rel="import" href="../bower_components/app-storage/app-indexeddb-mirror/app-indexeddb-mirror.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-app.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 
@@ -9,7 +10,6 @@
 <link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
 <link rel="import" href="../bower_components/neon-animation/neon-animated-pages.html">
 <link rel="import" href="../bower_components/neon-animation/neon-animations.html">
-<link rel="import" href="../bower_components/neon-animation/neon-animatable-behavior.html">
 
 <link rel="import" href="../bower_components/paper-card/paper-card.html">
 
@@ -42,6 +42,12 @@
     <firebase-document
       path="/apis"
       data="{{firebaseApis}}"></firebase-document>
+
+    <app-indexeddb-mirror
+        key="apis"
+        data="{{firebaseApis}}"
+        persisted-data="{{cachedApis}}">
+    </app-indexeddb-mirror>
 
     <app-location route="{{route}}"></app-location>
     <app-route route="{{route}}" pattern="/:page" data="{{routeData}}"></app-route>
@@ -94,10 +100,11 @@
         versionData: Object,
 
         firebaseApis: Object,
+        cachedApis: Object,
 
         apis: {
           type: Array,
-          computed: '_computeApis(firebaseApis)'
+          computed: '_computeApis(cachedApis)'
         }
       },
 
