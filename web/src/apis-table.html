@@ -2,7 +2,6 @@
 
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
-<link rel="import" href="../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../bower_components/iron-icons/iron-icons.html">
 <link rel="import" href="../bower_components/paper-item/paper-item.html">
@@ -11,7 +10,7 @@
 
 <link rel="import" href="helpers/format-behavior.html">
 
-<dom-module id="apis-list">
+<dom-module id="apis-table">
   <template>
     <style>
       #main {
@@ -22,22 +21,7 @@
 
       #main > * {
         width: 100%;
-        max-width: 800px;
-        margin: 5px auto;
-      }
-
-      paper-card {
-        display: block;
-      }
-
-      .card-header {
-        position: relative;
-        border-top-left-radius: inherit;
-        border-top-right-radius: inherit;
-        overflow: hidden;
-        border-bottom: 1px solid #e8e8e8;
-        padding: 5px 18px;
-        font-size: 18px;
+        padding: 1px 5px;
       }
 
       .row {
@@ -49,12 +33,18 @@
         @apply(--layout-flex);
       }
 
-      paper-item {
-        font-size: 14px;
+      paper-card {
+        display: block;
       }
 
-      paper-item-body.title {
-        font-size: 1.2em;
+      paper-item {
+        font-size: 14px;
+        border-bottom: 1px solid #CCC;
+      }
+
+      paper-item-body {
+        white-space: normal;
+        word-wrap: break-word;
       }
 
       [highlight] {
@@ -81,53 +71,41 @@
         </paper-card>
       </template>
       <template is="dom-repeat" items="[[apis]]"
-                filter="[[_computeFilter(_search, _changedOnly)]]"
+                filter="[[_computeFilter(_search)]]"
                 sort="[[_computeSort(_changedOnly)]]">
-        <paper-card>
-          <div class="card-header row">
-            <div>[[item.name]] - [[item.title]]</div>
-            <a href="/diff/[[item.key]]" tabindex="-1">
-              <paper-icon-button
-                icon="compare-arrows"
-                title="Compare versions/revisions"
-                on-click="_prepareAnimation"
-              ></paper-icon-button>
-            </a>
-          </div>
-          <div class="card-content" role="list">
-            <div class="row">
-              <div>[[item.description]]<br><br></div>
-            </div>
-            <template is="dom-repeat" items="[[item.versions]]" as="version" index-as="versionIndex">
-              <paper-item role="listitem" highlight$="[[!_outdated(version.updated)]]">
-                <paper-item-body class="title">
-                  Version [[version.version]]
-                </paper-item-body>
-                <paper-item-body two-line>
-                  <div>Revision: [[_shorten(version.latest)]]</div>
-                  <div secondary>([[_timeDisplay(version.updated)]])</div>
-                </paper-item-body>
-                <a href="[[version.documentation]]"
-                   target="_blank"
-                   invisible$="[[!version.documentation]]"
-                   tabindex="-1"><paper-icon-button icon="launch" title="Official documentation"></paper-icon-button></a>
-                <a href="/docs/[[version.key]]/[[version.versionKey]]" tabindex="-1">
-                  <paper-icon-button
-                    icon="description"
-                    title="API docs"
-                    on-click="_prepareAnimation"
-                  ></paper-icon-button>
-                </a>
-              </paper-item>
-            </template>
-          </div>
-        </paper-card>
+        <paper-item role="listitem" highlight$="[[!_outdated(item.updated)]]">
+          <paper-item-body>[[item.title]]</paper-item-body>
+          <paper-item-body>[[item.name]] [[item.version]]</paper-item-body>
+          <paper-item-body>[[_timeDisplay(item.updated)]]</paper-item-body>
+          <a href="[[item.documentation]]"
+             target="_blank"
+             invisible$="[[!item.documentation]]"
+             tabindex="-1">
+            <paper-icon-button
+              icon="launch"
+              title="Official documentation"
+            ></paper-icon-button></a>
+          <a href="/diff/[[item.key]]" tabindex="-1">
+            <paper-icon-button
+              icon="compare-arrows"
+              title="Compare versions/revisions"
+              on-click="_prepareAnimation"
+            ></paper-icon-button>
+          </a>
+          <a href="/docs/[[item.key]]/[[item.versionKey]]" tabindex="-1">
+            <paper-icon-button
+              icon="description"
+              title="API docs"
+              on-click="_prepareAnimation"
+            ></paper-icon-button>
+          </a>
+        </paper-item>
       </template>
     </div>
   </template>
   <script>
     Polymer({
-      is: 'apis-list',
+      is: 'apis-table',
 
       properties: {
         apis: Array,
@@ -172,8 +150,8 @@
         return (now - ts >= 604800000);
       },
 
-      _computeFilter: function (search, changedOnly) {
-        if (!search && !changedOnly) {
+      _computeFilter: function (search) {
+        if (!search) {
           return null;
         }
         search = search.toLowerCase();
@@ -186,15 +164,7 @@
               return false;
             }
           }
-          if (!changedOnly) {
-            return true;
-          }
-          for (var i = 0; i < api.versions.length; i++) {
-            if (!this._outdated(api.versions[i].updated)) {
-              return true;
-            }
-          }
-          return false;
+          return true;
         }.bind(this);
       },
 
@@ -206,17 +176,8 @@
           var time1 = '';
           var time2 = '';
 
-          for (var i = 0; i < api1.versions.length; i++) {
-            if (api1.versions[i].updated > time1) {
-              time1 = api1.versions[i].updated;
-            }
-          }
-
-          for (i = 0; i < api2.versions.length; i++) {
-            if (api2.versions[i].updated > time1) {
-              time2 = api2.versions[i].updated;
-            }
-          }
+          time1 = api1.updated;
+          time2 = api2.updated;
 
           if (time1 === time2) {
             return 0;

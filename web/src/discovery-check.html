@@ -13,6 +13,9 @@
 
 <link rel="import" href="../bower_components/paper-card/paper-card.html">
 
+<link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+
 <dom-module id="discovery-check">
   <template>
     <style>
@@ -31,6 +34,10 @@
 
       neon-animated-pages {
         @apply(--layout-fit);
+      }
+
+      paper-toolbar a {
+        color: inherit;
       }
     </style>
 
@@ -56,11 +63,24 @@
     <paper-header-panel>
       <paper-toolbar>
         <div class="title">Google APIs Discovery Check</div>
+        <a href="/table" tabindex="-1" hidden$="[[_hideTableView(routeData.page)]]">
+          <paper-icon-button
+            icon="view-list"
+            title="Table View"
+          ></paper-icon-button>
+        </a>
+        <a href="/" tabindex="-1"  hidden$="[[_hideCardView(routeData.page)]]">
+          <paper-icon-button
+            icon="view-agenda"
+            title="Card View"
+          ></paper-icon-button>
+        </a>
       </paper-toolbar>
       <neon-animated-pages id="pages" attr-for-selected="page" selected="[[routeData.page]]">
         <apis-list page="" apis=[[apis]]></apis-list>
-        <api-diff page="diff" api="[[getApiData(apis, apiData.api)]]"></api-diff>
-        <api-docs page="docs" version="[[getVersionData(apis, versionData.api, versionData.version)]]"></api-docs>
+        <apis-table page="table" apis=[[apiList]]></apis-table>
+        <api-diff page="diff" api="[[getApiData(apis, apiData.api)]]" source="[[sourcePage]]"></api-diff>
+        <api-docs page="docs" version="[[getVersionData(apis, versionData.api, versionData.version)]]" source="[[sourcePage]]"></api-docs>
       </neon-animated-pages>
     </paper-header-panel>
   </template>
@@ -102,14 +122,15 @@
         firebaseApis: Object,
         cachedApis: Object,
 
-        apis: {
-          type: Array,
-          computed: '_computeApis(cachedApis)'
-        }
+        apis: Array,
+        apiList: Array,
+
+        sourcePage: String
       },
 
       observers: [
-        '_pageChanged(routeData.page)'
+        '_pageChanged(routeData.page)',
+        '_apisChanged(cachedApis)'
       ],
 
       _pageChanged: function (page) {
@@ -118,6 +139,11 @@
         switch(page) {
           case '':
             importUrl = 'apis-list.html';
+            this.sourcePage = '';
+            break;
+          case 'table':
+            importUrl = 'apis-table.html';
+            this.sourcePage = 'table';
             break;
           case 'docs':
             importUrl = 'api-docs.html';
@@ -134,12 +160,21 @@
         );
       },
 
-      _computeApis: function (firebaseApis) {
+      _hideCardView: function (page) {
+        return (page !== 'table');
+      },
+
+      _hideTableView: function (page) {
+        return (page !== '');
+      },
+
+      _apisChanged: function (firebaseApis) {
         if (!firebaseApis) {
           return [];
         }
 
         var apis = [];
+        var list = [];
 
         Object.keys(firebaseApis).forEach(function (name) {
           var fbApi = firebaseApis[name];
@@ -171,17 +206,19 @@
             Object.keys(fbVersion.revisions).forEach(function (rev) {
               apiVersion.revisions.push({
                 revision: rev,
-                updated: fbVersion.revisions[rev] 
+                updated: fbVersion.revisions[rev]
               });
             });
 
             api.versions.push(apiVersion);
+            list.push(apiVersion);
           });
 
           apis.push(api);
         });
 
-        return apis;
+        this.set('apis', apis);
+        this.set('apiList', list);
       },
 
       getApiData: function (apis, cleanName) {
@@ -211,5 +248,8 @@
         return null;
       }
     });
+
+
   </script>
+
 </dom-module>

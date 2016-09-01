@@ -97,7 +97,7 @@
       <paper-card hidden$="[[!_hasApi(api)]]">
         <div class="card-header row">
           <div>[[api.name]] - [[api.title]]</div>
-          <a href="/" tab-index="-1">
+          <a href="/[[source]]" tab-index="-1">
             <paper-icon-button icon="clear" title="Close details"></paper-icon-button>
           </a>
         </div>
@@ -107,7 +107,7 @@
               <paper-menu class="dropdown-content">
                 <template is="dom-repeat" items="[[docs]]">
                   <paper-item version="[[item.versionKey]]" revision="[[item.revision]]">
-                    [[item.version]] - [[shorten(item.revision)]] ([[timeDisplay(item.updated)]])
+                    [[item.version]] - [[_shorten(item.revision)]] ([[_timeDisplay(item.updated)]])
                   </paper-item>
                 </template>
               </paper-menu>
@@ -116,7 +116,7 @@
               <paper-menu class="dropdown-content">
                 <template is="dom-repeat" items="[[docs]]">
                   <paper-item version="[[item.versionKey]]" revision="[[item.revision]]">
-                    [[item.version]] - [[shorten(item.revision)]] ([[timeDisplay(item.updated)]])
+                    [[item.version]] - [[_shorten(item.revision)]] ([[_timeDisplay(item.updated)]])
                   </paper-item>
                 </template>
               </paper-menu>
@@ -149,6 +149,11 @@
           type: Array,
           computed: '_docs(api.versions)',
           observer: '_docsChanged'
+        },
+
+        source: {
+          type: String,
+          value: ''
         },
 
         sharedElements: {
@@ -338,4 +343,4 @@
       }
     });
   </script>
-</dom-module>
+</dom-module

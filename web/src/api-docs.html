@@ -82,7 +82,7 @@
       <paper-card hidden$="[[!_hasVersion(version)]]">
         <div class="card-header row">
           <div>[[version.name]] [[version.version]] - [[version.title]]</div>
-          <a href="/" tab-index="-1">
+          <a href="/[[source]]" tab-index="-1">
             <paper-icon-button icon="clear" title="Close details"></paper-icon-button>
           </a>
         </div>
@@ -150,6 +150,11 @@
         version: {
           type: Object,
           observer: '_versionChanged'
+        },
+
+        source: {
+          type: String,
+          value: ''
         },
 
         sharedElements: {
@@ -319,4 +324,4 @@
 
     });
   </script>
-</dom-module>
+</dom-module

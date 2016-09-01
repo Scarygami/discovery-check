@@ -3,14 +3,14 @@
 
   /** @polymerBehavior ApiBehaviors.FormatBehavior */
   window.ApiBehaviors.FormatBehavior = {
-    shorten: function (s) {
+    _shorten: function (s) {
       if (s && s.length >= 10) {
         return s.substr(0, 10) + '...';
       }
       return s;
     },
 
-    timeDisplay: function (time) {
+    _timeDisplay: function (time) {
       if (!time) { return 'never'; }
       var date = new Date(time);
 
