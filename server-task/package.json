@@ -1,12 +1,12 @@
 {
   "name": "discovery-check",
   "description": "Checks for changes in discovery docs and updates Firebase database",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "license": "Apache Version 2.0",
   "author": "Gerwin Sturm",
   "engines": {
-    "node": "~4.2"
+    "node": "~6.10"
   },
   "scripts": {
     "start": "node app.js",
@@ -14,11 +14,14 @@
     "deploy": "gcloud preview app deploy"
   },
   "dependencies": {
-    "bluebird": "^3.4.0",
-    "express": "^4.13.4",
-    "firebase": "^3.0.3",
-    "request-promise": "^3.0.0",
-    "winston": "^2.2.0",
+    "bluebird": "^3.5.0",
+    "express": "^4.15.0",
+    "firebase": "^4.0.0",
+    "firebase-admin": "^5.0.0",
+    "json-stable-stringify": "^1.0.0",
+    "request": "^2.34.0",
+    "request-promise": "^4.2.0",
+    "winston": "^2.3.0",
     "winston-gae": "^0.1.0"
   }
 }

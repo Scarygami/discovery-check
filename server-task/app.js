@@ -2,7 +2,8 @@
 
 var express = require('express');
 var request = require('request-promise');
-var Promise = require('bluebird');
+var promise = require('bluebird');
+var stringify = require('json-stable-stringify');
 
 // Setup up App Engine logging
 var winston = require('winston');
@@ -18,11 +19,12 @@ var logger = new winston.Logger({
 });
 
 // Initialize connection to Firebase DB
-var firebase = require('firebase');
+var firebase = require('firebase-admin');
+var serviceAccount = require('./firebase-serviceaccount.json');
 
 firebase.initializeApp({
+  credential: firebase.credential.cert(serviceAccount),
   databaseURL: 'https://your-firebase.firebaseio.com',
-  serviceAccount: 'firebase-serviceacount.json',
   databaseAuthVariableOverride: {
     uid: 'serviceaccount'
   }
@@ -102,7 +104,7 @@ function handleApi(discoveryApi) {
       return db.ref('apiDocs').child(cleanApi)
                               .child(cleanVersion)
                               .child(cleanRevision)
-                              .set(JSON.stringify(doc));
+                              .set(stringify(doc));
     }).then(function () {
       return 'Updated: ' + cleanApi + ' ' + cleanVersion;
     });
@@ -115,14 +117,14 @@ function handleApi(discoveryApi) {
 
 var app = express();
 
-app.get('/update_docs', function (req, res) {
+app.get('/update_firebase', function (req, res) {
   // Get list of all available APIs
   request({
     uri: 'https://www.googleapis.com/discovery/v1/apis',
     json: true
   }).then(function (response) {
     // Check all the APIs and update the DB as necessary
-    Promise.all(
+    promise.all(
       response.items.map(handleApi)
     ).then(function (apiData) {
       res.status(200).send(JSON.stringify(apiData));

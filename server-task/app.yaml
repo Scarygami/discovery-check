@@ -1,13 +1,7 @@
 runtime: nodejs
-vm: true
+env: flex
 manual_scaling:
   instances: 1
-
-handlers:
-- url: /update_docs
-  script: NONE
-  secure: always
-  login: admin
 
 skip_files:
   - ^(.*/)?.*/node_modules/.*$
