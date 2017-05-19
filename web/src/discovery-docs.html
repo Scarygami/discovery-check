@@ -3,17 +3,15 @@
 <link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 
 <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
-<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
-<link rel="import" href="../bower_components/iron-icons/hardware-icons.html">
 <link rel="import" href="../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../bower_components/iron-collapse/iron-collapse.html">
 <link rel="import" href="../bower_components/paper-item/paper-item.html">
 <link rel="import" href="../bower_components/paper-item/paper-item-body.html">
-<link rel="import" href="../bower_components/neon-animation/neon-animatable-behavior.html">
 
+<link rel="import" href="helpers/discovery-icons.html">
 <link rel="import" href="helpers/format-behavior.html">
 
-<dom-module id="api-docs">
+<dom-module id="discovery-docs">
   <template>
     <style>
       #main {
@@ -83,7 +81,7 @@
         <div class="card-header row">
           <div>[[version.name]] [[version.version]] - [[version.title]]</div>
           <a href="/[[source]]" tab-index="-1">
-            <paper-icon-button icon="clear" title="Close details"></paper-icon-button>
+            <paper-icon-button icon="discovery:close" title="Close details"></paper-icon-button>
           </a>
         </div>
         <div id="docs">
@@ -144,7 +142,7 @@
   <script>
 
     Polymer({
-      is: 'api-docs',
+      is: 'discovery-docs',
 
       properties: {
         version: {
@@ -157,34 +155,6 @@
           value: ''
         },
 
-        sharedElements: {
-          type: Object,
-          value: function() {
-            return {
-              'hero': this.$.main
-            };
-          }
-        },
-
-        animationConfig: {
-          type: Object,
-          value: function() {
-            return {
-              'entry': [{
-                name: 'hero-animation',
-                id: 'hero',
-                toPage: this
-              }],
-              'exit': [{
-                name: 'scale-down-animation',
-                node: this.$.main,
-                transformOrigin: '50% 50%',
-                axis: 'y'
-              }]
-            };
-          }
-        },
-
         _doc: {
           type: String,
           observer: '_docChanged'
@@ -192,16 +162,7 @@
         _apiDescription: Object
       },
 
-      // Workaround for https://github.com/PolymerElements/neon-animation/pull/149
-      listeners: {
-        'iron-select': '_onIronSelect'
-      },
-      _onIronSelect: function (e) {
-        e.stopPropagation();
-      },
-
       behaviors: [
-        Polymer.NeonAnimatableBehavior,
         window.ApiBehaviors.FormatBehavior
       ],
 
@@ -305,9 +266,9 @@
 
       _toggleIcon: function (opened) {
         if (opened) {
-          return 'hardware:keyboard-arrow-up';
+          return 'discovery:arrow-up';
         }
-        return 'hardware:keyboard-arrow-down';
+        return 'discovery:arrow-down';
       },
 
       _toggleScopes: function () {
@@ -324,4 +285,4 @@
 
     });
   </script>
-</dom-module
+</dom-module>

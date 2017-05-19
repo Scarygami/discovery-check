@@ -2,15 +2,32 @@
   "entrypoint": "index.html",
   "shell": "src/discovery-check.html",
   "fragments": [
-    "src/apis-list.html",
-    "src/apis-table.html",
-    "src/api-diff.html",
-    "src/api-docs.html"
+    "src/discovery-list.html",
+    "src/discovery-table.html",
+    "src/discovery-diff.html",
+    "src/discovery-docs.html"
   ],
-  "includeDependencies": [
+  "sources": [
+    "src/**/*",
+    "images/**/*",
+    "bower.json"
+  ],
+  "extraDependencies": [
     "images/**",
-    "bower_components/webcomponentsjs/webcomponents-lite.min.js",
+    "bower_components/webcomponentsjs/webcomponents-lite.js",
     "bower_components/jsdiff/diff.min.js",
     "manifest.json"
+  ],
+  "lint": {
+    "rules": ["polymer-2"]
+  },
+  "builds": [
+    {
+      "js": {"minify": true},
+      "html": {"minify": true},
+      "css": {"minify": true},
+      "bundle": false,
+      "addServiceWorker": true
+    }
   ]
 }

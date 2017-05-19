@@ -1,16 +1,16 @@
 <link rel="import" href="../bower_components/polymer/polymer.html">
 
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../bower_components/paper-input/paper-input.html">
 <link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
 <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
-<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
 <link rel="import" href="../bower_components/paper-item/paper-item.html">
 <link rel="import" href="../bower_components/paper-item/paper-item-body.html">
-<link rel="import" href="../bower_components/neon-animation/neon-animatable-behavior.html">
 
+<link rel="import" href="helpers/discovery-icons.html">
 <link rel="import" href="helpers/format-behavior.html">
 
-<dom-module id="apis-table">
+<dom-module id="discovery-table">
   <template>
     <style>
       #main {
@@ -63,7 +63,7 @@
     <div id="main">
       <div class="row">
         <paper-input label="Search" value="{{_search}}"></paper-input>
-        <paper-checkbox checked="{{_changedOnly}}">Recently changed</paper-checkbox>
+        <paper-checkbox checked="{{recentlyChanged}}">Recently changed</paper-checkbox>
       </div>
       <template is="dom-if" if="[[!apis.length]]">
         <paper-card>
@@ -72,7 +72,7 @@
       </template>
       <template is="dom-repeat" items="[[apis]]"
                 filter="[[_computeFilter(_search)]]"
-                sort="[[_computeSort(_changedOnly)]]">
+                sort="[[_computeSort(recentlyChanged)]]">
         <paper-item role="listitem" highlight$="[[!_outdated(item.updated)]]">
           <paper-item-body>[[item.title]]</paper-item-body>
           <paper-item-body>[[item.name]] [[item.version]]</paper-item-body>
@@ -82,21 +82,19 @@
              invisible$="[[!item.documentation]]"
              tabindex="-1">
             <paper-icon-button
-              icon="launch"
+              icon="discovery:link"
               title="Official documentation"
             ></paper-icon-button></a>
           <a href="/diff/[[item.key]]" tabindex="-1">
             <paper-icon-button
-              icon="compare-arrows"
+              icon="discovery:compare"
               title="Compare versions/revisions"
-              on-click="_prepareAnimation"
             ></paper-icon-button>
           </a>
           <a href="/docs/[[item.key]]/[[item.versionKey]]" tabindex="-1">
             <paper-icon-button
-              icon="description"
+              icon="discovery:docs"
               title="API docs"
-              on-click="_prepareAnimation"
             ></paper-icon-button>
           </a>
         </paper-item>
@@ -105,43 +103,22 @@
   </template>
   <script>
     Polymer({
-      is: 'apis-table',
+      is: 'discovery-table',
 
       properties: {
         apis: Array,
 
-        animationConfig: {
-          type: Object,
-          value: function() {
-            return {
-              'exit': [{
-                name: 'hero-animation',
-                id: 'hero',
-                fromPage: this
-              }]
-            };
-          }
+        recentlyChanged: {
+          type: Boolean,
+          notify: true
         },
 
-        _search: String,
-        _changedOnly: Boolean
+        _search: String
       },
 
       behaviors: [
-        Polymer.NeonAnimatableBehavior,
         window.ApiBehaviors.FormatBehavior
       ],
-
-      _prepareAnimation: function (e) {
-        var target = e.target;
-        while (target !== this && !target._templateInstance) {
-          target = target.parentNode;
-        }
-        // configure the page animation
-        this.sharedElements = {
-          'hero': target,
-        };
-      },
 
       _outdated: function (time) {
         if (!time) { return true; }
@@ -192,4 +169,4 @@
       }
     });
   </script>
-</dom-module
+</dom-module>

@@ -3,40 +3,42 @@
 <link rel="import" href="../bower_components/app-route/app-location.html">
 <link rel="import" href="../bower_components/app-route/app-route.html">
 <link rel="import" href="../bower_components/app-storage/app-indexeddb-mirror/app-indexeddb-mirror.html">
+
 <link rel="import" href="../bower_components/polymerfire/firebase-app.html">
 <link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 
-<link rel="import" href="../bower_components/paper-header-panel/paper-header-panel.html">
-<link rel="import" href="../bower_components/paper-toolbar/paper-toolbar.html">
-<link rel="import" href="../bower_components/neon-animation/neon-animated-pages.html">
-<link rel="import" href="../bower_components/neon-animation/neon-animations.html">
+<link rel="import" href="../bower_components/app-layout/app-header-layout/app-header-layout.html">
+<link rel="import" href="../bower_components/app-layout/app-header/app-header.html">
+<link rel="import" href="../bower_components/app-layout/app-toolbar/app-toolbar.html">
+
+<link rel="import" href="../bower_components/iron-pages/iron-pages.html">
 
 <link rel="import" href="../bower_components/paper-card/paper-card.html">
-
 <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
-<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+
+<link rel="import" href="helpers/discovery-icons.html">
 
 <dom-module id="discovery-check">
   <template>
     <style>
       :host {
         display: block;
-        @apply(--layout-fullbleed);
-        @apply(--paper-font-body1);
+        @apply --layout-fullbleed;
+        @apply --paper-font-body1;
+        --app-primary-color:#3f51b5;
+        --app-secondary-color: white;
       }
 
-      paper-toolbar {
-        --paper-toolbar-title: {
-          margin-left: 0px !important;
-          line-height: 1.1;
-        };
+      iron-pages {
+        @apply --layout-fit;
       }
 
-      neon-animated-pages {
-        @apply(--layout-fit);
+      app-header {
+        background-color: var(--app-primary-color);
+        color: white;
       }
 
-      paper-toolbar a {
+      app-toolbar a {
         color: inherit;
       }
     </style>
@@ -60,29 +62,31 @@
     <app-route route="{{route}}" pattern="/:page" data="{{routeData}}"></app-route>
     <app-route route="{{route}}" pattern="/diff/:api" data="{{apiData}}"></app-route>
     <app-route route="{{route}}" pattern="/docs/:api/:version" data="{{versionData}}"></app-route>
-    <paper-header-panel>
-      <paper-toolbar>
-        <div class="title">Google APIs Discovery Check</div>
-        <a href="/table" tabindex="-1" hidden$="[[_hideTableView(routeData.page)]]">
-          <paper-icon-button
-            icon="view-list"
-            title="Table View"
-          ></paper-icon-button>
-        </a>
-        <a href="/" tabindex="-1"  hidden$="[[_hideCardView(routeData.page)]]">
-          <paper-icon-button
-            icon="view-agenda"
-            title="Card View"
-          ></paper-icon-button>
-        </a>
-      </paper-toolbar>
-      <neon-animated-pages id="pages" attr-for-selected="page" selected="[[routeData.page]]">
-        <apis-list page="" apis=[[apis]]></apis-list>
-        <apis-table page="table" apis=[[apiList]]></apis-table>
-        <api-diff page="diff" api="[[getApiData(apis, apiData.api)]]" source="[[sourcePage]]"></api-diff>
-        <api-docs page="docs" version="[[getVersionData(apis, versionData.api, versionData.version)]]" source="[[sourcePage]]"></api-docs>
-      </neon-animated-pages>
-    </paper-header-panel>
+    <app-header-layout fullbleed has-scrolling-region>
+      <app-header fixed slot="header">
+        <app-toolbar>
+          <div main-title>Google APIs Discovery Check</div>
+          <a href="/table" tabindex="-1" hidden$="[[_hideTableView(page)]]">
+            <paper-icon-button
+              icon="discovery:table"
+              title="Table View"
+            ></paper-icon-button>
+          </a>
+          <a href="/list" tabindex="-1"  hidden$="[[_hideCardView(page)]]">
+            <paper-icon-button
+              icon="discovery:cards"
+              title="Card View"
+            ></paper-icon-button>
+          </a>
+        </app-toolbar>
+      </app-header>
+      <iron-pages id="pages" attr-for-selected="page" selected="[[page]]">
+        <discovery-table page="table" apis="[[apiList]]" recently-changed="{{recentlyChanged}}"></discovery-table>
+        <discovery-list page="list" apis="[[apis]]" recently-changed="{{recentlyChanged}}"></discovery-list>
+        <discovery-diff page="diff" api="[[getApiData(apis, apiData.api)]]" source="[[sourcePage]]"></discovery-diff>
+        <discovery-docs page="docs" version="[[getVersionData(apis, versionData.api, versionData.version)]]" source="[[sourcePage]]"></discovery-docs>
+      </iron-pages>
+    </app-header-layout>
   </template>
 
   <script>
@@ -125,39 +129,30 @@
         apis: Array,
         apiList: Array,
 
+        page: {
+          type: String,
+          observer: '_pageChanged'
+        },
         sourcePage: String
       },
 
       observers: [
-        '_pageChanged(routeData.page)',
+        '_routePageChanged(routeData.page)',
         '_apisChanged(cachedApis)'
       ],
 
+      _routePageChanged: function (page) {
+        this.page = page || 'table';
+      },
+
       _pageChanged: function (page) {
-        var importUrl = '';
-
-        switch(page) {
-          case '':
-            importUrl = 'apis-list.html';
-            this.sourcePage = '';
-            break;
-          case 'table':
-            importUrl = 'apis-table.html';
-            this.sourcePage = 'table';
-            break;
-          case 'docs':
-            importUrl = 'api-docs.html';
-            break;
-          case 'diff':
-            importUrl = 'api-diff.html';
-            break;
-        }
-
-        if (!importUrl) { return; }
-
+        var importUrl = 'discovery-' + page + '.html';
         this.importHref(
           this.resolveUrl(importUrl), null, null, true
         );
+        if (page === 'table' || page === 'list') {
+          this.sourcePage = page;
+        }
       },
 
       _hideCardView: function (page) {
@@ -165,7 +160,7 @@
       },
 
       _hideTableView: function (page) {
-        return (page !== '');
+        return (page !== 'list');
       },
 
       _apisChanged: function (firebaseApis) {
@@ -248,8 +243,5 @@
         return null;
       }
     });
-
-
   </script>
-
 </dom-module>

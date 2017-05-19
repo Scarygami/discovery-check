@@ -3,16 +3,16 @@
 <link rel="import" href="../bower_components/polymerfire/firebase-document.html">
 <link rel="import" href="../bower_components/paper-card/paper-card.html">
 <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
-<link rel="import" href="../bower_components/iron-icons/iron-icons.html">
-<link rel="import" href="../bower_components/paper-dropdown-menu/paper-dropdown-menu.html">
-<link rel="import" href="../bower_components/paper-menu/paper-menu.html">
+<link rel="import" href="../bower_components/vaadin-combo-box/vaadin-combo-box.html">
 <link rel="import" href="../bower_components/paper-item/paper-item.html">
 <link rel="import" href="../bower_components/paper-checkbox/paper-checkbox.html">
-<link rel="import" href="../bower_components/neon-animation/neon-animatable-behavior.html">
 
+<link rel="import" href="../bower_components/iron-flex-layout/iron-flex-layout.html">
+
+<link rel="import" href="helpers/discovery-icons.html">
 <link rel="import" href="helpers/format-behavior.html">
 
-<dom-module id="api-diff">
+<dom-module id="discovery-diff">
   <template>
     <style>
       pre {
@@ -27,7 +27,7 @@
       }
 
       #main {
-        @apply(--layout-fit);
+        @apply --layout-fit;
         padding: 10px;
       }
 
@@ -35,7 +35,7 @@
         width: 100%;
         height: 100%;
 
-        @apply(--layout-vertical);
+        @apply --layout-vertical;
       }
 
       .card-header {
@@ -49,21 +49,20 @@
       }
 
       .card-content {
-        @apply(--layout-vertical);
+        @apply --layout-vertical;
       }
 
       .row {
-        @apply(--layout-horizontal);
-        @apply(--layout-center);
+        @apply --layout-horizontal;
+        @apply --layout-center;
       }
 
-      .row > div {
-        @apply(--layout-flex);
-      }
-
-      .row > paper-dropdown-menu {
-        @apply(--layout-flex);
+      .row > * {
         margin: 0px 10px;
+      }
+
+      .row > div, .row > vaadin-combo-box {
+        @apply --layout-flex;
       }
 
       pre[removed] {
@@ -77,7 +76,7 @@
       }
 
       #diff {
-        @apply(--layout-flex);
+        @apply --layout-flex;
         overflow-y: auto;
         padding: 16px;
       }
@@ -98,29 +97,23 @@
         <div class="card-header row">
           <div>[[api.name]] - [[api.title]]</div>
           <a href="/[[source]]" tab-index="-1">
-            <paper-icon-button icon="clear" title="Close details"></paper-icon-button>
+            <paper-icon-button icon="discovery:close" title="Close details"></paper-icon-button>
           </a>
         </div>
         <div class="card-content">
           <div class="row">
-            <paper-dropdown-menu selected-item="{{_selectedRevision1}}" id="revision1" label="Compare docs">
-              <paper-menu class="dropdown-content">
-                <template is="dom-repeat" items="[[docs]]">
-                  <paper-item version="[[item.versionKey]]" revision="[[item.revision]]">
-                    [[item.version]] - [[_shorten(item.revision)]] ([[_timeDisplay(item.updated)]])
-                  </paper-item>
-                </template>
-              </paper-menu>
-            </paper-dropdown-menu>
-            <paper-dropdown-menu selected-item="{{_selectedRevision2}}" id="revision2" label="to">
-              <paper-menu class="dropdown-content">
-                <template is="dom-repeat" items="[[docs]]">
-                  <paper-item version="[[item.versionKey]]" revision="[[item.revision]]">
-                    [[item.version]] - [[_shorten(item.revision)]] ([[_timeDisplay(item.updated)]])
-                  </paper-item>
-                </template>
-              </paper-menu>
-            </paper-dropdown-menu>
+            <vaadin-combo-box id="revision1"
+                              value="{{_selectedRevision1}}"
+                              items="[[docs]]"
+                              item-label-path="label"
+                              item-value-path="key"
+                              label="Compare docs"></vaadin-combo-box>
+            <vaadin-combo-box id="revision2"
+                              value="{{_selectedRevision2}}"
+                              items="[[docs]]"
+                              item-label-path="label"
+                              item-value-path="key"
+                              label="to"></vaadin-combo-box>
             <paper-checkbox checked="{{_diffOnly}}">Changes only</paper-checkbox>
           </div>
         </div>
@@ -138,7 +131,7 @@
   <script>
 
     Polymer({
-      is: 'api-diff',
+      is: 'discovery-diff',
 
       properties: {
         api: {
@@ -156,40 +149,12 @@
           value: ''
         },
 
-        sharedElements: {
-          type: Object,
-          value: function() {
-            return {
-              'hero': this.$.main
-            };
-          }
-        },
-
-        animationConfig: {
-          type: Object,
-          value: function() {
-            return {
-              'entry': [{
-                name: 'hero-animation',
-                id: 'hero',
-                toPage: this
-              }],
-              'exit': [{
-                name: 'scale-down-animation',
-                node: this.$.main,
-                transformOrigin: '50% 50%',
-                axis: 'y'
-              }]
-            };
-          }
-        },
-
         _selectedRevision1: {
-          type: Object,
+          type: String,
           observer: '_revisionsChanged'
         },
         _selectedRevision2: {
-          type: Object,
+          type: String,
           observer: '_revisionsChanged'
         },
         _version1: String,
@@ -204,8 +169,8 @@
           type: String,
           observer: '_doc2Changed'
         },
-        _cleanedDoc1: String,
-        _cleanedDoc2: String,
+        _cleanedDoc1: Object,
+        _cleanedDoc2: Object,
         _diff: Array,
         _diffOnly: Boolean
       },
@@ -214,16 +179,7 @@
         '_computeDiff(_cleanedDoc1, _cleanedDoc2)'
       ],
 
-      // Workaround for https://github.com/PolymerElements/neon-animation/pull/149
-      listeners: {
-        'iron-select': '_onIronSelect'
-      },
-      _onIronSelect: function (e) {
-        e.stopPropagation();
-      },
-
       behaviors: [
-        Polymer.NeonAnimatableBehavior,
         window.ApiBehaviors.FormatBehavior
       ],
 
@@ -242,17 +198,19 @@
 
       _docs: function (versions) {
         var docs = [];
-        if (!!versions) {
+        if (versions) {
           versions.forEach(function (version) {
             version.revisions.forEach(function (revision) {
               docs.push({
+                key: version.versionKey + '//' + revision.revision,
+                label: version.version + ' - ' + this._shorten(revision.revision)  + ' (' + this._timeDisplay(revision.updated) + ')',
                 version: version.version,
                 versionKey: version.versionKey,
                 revision: revision.revision,
                 updated: revision.updated
               });
-            });
-          });
+            }.bind(this));
+          }.bind(this));
         }
         docs.sort(function (a, b) {
           if (a.version < b.version) { return 1; }
@@ -267,33 +225,33 @@
       },
 
       _docsChanged: function () {
-        this.$.revision1.contentElement.selected = undefined;
-        this.$.revision2.contentElement.selected = undefined;
+        this.$.revision1.value = '';
+        this.$.revision2.value = '';
         if (this.docs && this.docs.length > 0) {
-          this.async(function () {
-            this.$.revision1.contentElement.selected = 0;
-            this.$.revision2.contentElement.selected = ((this.docs.length > 1) ? 1 : 0);
-          }, 1);
+          this.$.revision1.value = this.docs[0].key;
+          this.$.revision2.value = this.docs[(this.docs.length > 1) ? 1 : 0].key;
         }
       },
 
       _apiChanged: function () {
-        this._cleanedDoc1 = '';
-        this._cleanedDoc2 = '';
+        this._cleanedDoc1 = null;
+        this._cleanedDoc2 = null;
         this._diffOnly = false;
       },
 
       _revisionsChanged: function () {
         if (this._selectedRevision1) {
-          this._version1 = this._selectedRevision1.version;
-          this._rev1 = this._selectedRevision1.revision;
+          var revision1 = this._selectedRevision1.split('//');
+          this._version1 = revision1[0];
+          this._rev1 = revision1[1];
         } else {
           this._version1 = null;
           this._rev1 = null;
         }
         if (this._selectedRevision2) {
-          this._version2 = this._selectedRevision2.version;
-          this._rev2 = this._selectedRevision2.revision;
+          var revision2 = this._selectedRevision2.split('//');
+          this._version2 = revision2[0];
+          this._rev2 = revision2[1];
         } else {
           this._version2 = null;
           this._rev2 = null;
@@ -313,7 +271,7 @@
         json.cleanName = undefined;
         json.cleanVersion = undefined;
         json.cleanRevision = undefined;
-        return JSON.stringify(json, undefined, 2);
+        return json;
       },
 
       _doc1Changed: function () {
@@ -343,4 +301,4 @@
       }
     });
   </script>
-</dom-module
+</dom-module>
