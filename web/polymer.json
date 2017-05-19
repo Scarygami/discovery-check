@@ -10,6 +10,7 @@
   "includeDependencies": [
     "images/**",
     "bower_components/webcomponentsjs/webcomponents-lite.min.js",
+    "bower_components/jsdiff/diff.min.js",
     "manifest.json"
   ]
 }
