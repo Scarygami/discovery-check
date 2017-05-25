@@ -13,9 +13,9 @@
     "bower.json"
   ],
   "extraDependencies": [
-    "images/**",
-    "bower_components/webcomponentsjs/webcomponents-lite.js",
     "bower_components/jsdiff/diff.min.js",
+    "bower_components/webcomponentsjs/webcomponents-lite.js",
+    "favicon.png",
     "manifest.json"
   ],
   "lint": {

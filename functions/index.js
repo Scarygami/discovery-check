@@ -1,51 +1,35 @@
-'use strict';
+const admin = require('firebase-admin');
+const functions = require('firebase-functions');
+const request = require('request-promise');
+const stringify = require('json-stable-stringify');
 
-var express = require('express');
-var request = require('request-promise');
-var promise = require('bluebird');
-var stringify = require('json-stable-stringify');
+const secret = 'your-secret-key';
 
-// Setup up App Engine logging
-var winston = require('winston');
-require('winston-gae');
+admin.initializeApp(functions.config().firebase);
 
-var logger = new winston.Logger({
-  levels: winston.config.GoogleAppEngine.levels,
-  transports: [
-    new winston.transports.GoogleAppEngine({
-      level: 'emergency'
-    })
-  ]
-});
+/**
+ * Create a firebase friendly key
+ */
+function cleanKey(name) {
+  return name.replace(/[\.\$\#\[\]\/\"]/g, '_');
+}
 
-// Initialize connection to Firebase DB
-var firebase = require('firebase-admin');
-var serviceAccount = require('./firebase-serviceaccount.json');
-
-firebase.initializeApp({
-  credential: firebase.credential.cert(serviceAccount),
-  databaseURL: 'https://your-firebase.firebaseio.com',
-  databaseAuthVariableOverride: {
-    uid: 'serviceaccount'
-  }
-});
-
+/**
+ * Fetches the Discovery API document for an API and updates data
+ * in the Firebase database if there have been changes
+ */
 function handleApi(discoveryApi) {
   var cleanApi;
   var cleanVersion;
   var cleanRevision;
   var doc;
-  var db = firebase.database();
-
-  function cleanKey(name) {
-    return name.replace(/[\.\$\#\[\]\/\"]/g, '_');
-  }
+  var db = admin.database();
 
   // Fetch discovery documentation
   return request({
     uri: discoveryApi.discoveryRestUrl,
     json: true
-  }).then(function (response) {
+  }).then((response) => {
     doc = response;
     cleanApi = cleanKey(doc.name);
     cleanVersion = cleanKey(doc.version);
@@ -53,13 +37,13 @@ function handleApi(discoveryApi) {
 
     // Fetch current status from Firebase to compare against
     return db.ref('apis').child(cleanApi).child('versions').child(cleanVersion).once('value');
-
-  }).then(function (snapshot) {
+  }).then((snapshot) => {
     var fbVersion = snapshot.val();
 
     if (fbVersion && fbVersion.latest === cleanRevision) {
       return 'No changes: ' + cleanApi + ' ' + cleanVersion;
     }
+    var newVersion = !fbVersion;
 
     var now = (new Date()).toISOString();
 
@@ -79,6 +63,9 @@ function handleApi(discoveryApi) {
         latest: cleanRevision,
         updated: now
       };
+      if (newVersion) {
+        version.discovered = now;
+      }
 
       if (doc.documentationLink) {
         version.documentation = doc.documentationLink;
@@ -89,7 +76,7 @@ function handleApi(discoveryApi) {
                            .child('versions')
                            .child(cleanVersion)
                            .update(version);
-    }).then(function () {
+    }).then(() => {
       var revision = {};
       revision[cleanRevision] = now;
 
@@ -99,49 +86,44 @@ function handleApi(discoveryApi) {
                            .child(cleanVersion)
                            .child('revisions')
                            .update(revision);
-    }).then(function () {
+    }).then(() => {
       // Store the discovery doc for diffs
       return db.ref('apiDocs').child(cleanApi)
                               .child(cleanVersion)
                               .child(cleanRevision)
                               .set(stringify(doc));
-    }).then(function () {
+    }).then(() => {
       return 'Updated: ' + cleanApi + ' ' + cleanVersion;
     });
-  }).catch(function (error) {
+  }).catch((error) => {
     throw new Error(
       'Error updating ' + cleanApi + ' ' + cleanVersion + ' - ' + error.message
     );
   });
 }
 
-var app = express();
+exports.updateDocs = functions.https.onRequest((req, res) => {
+  if (!req.query || req.query.secret !== secret) {
+    res.status(200).send('Hello world!');
+    return;
+  }
 
-app.get('/update_firebase', function (req, res) {
   // Get list of all available APIs
   request({
     uri: 'https://www.googleapis.com/discovery/v1/apis',
     json: true
-  }).then(function (response) {
+  }).then((response) => {
     // Check all the APIs and update the DB as necessary
-    promise.all(
+    Promise.all(
       response.items.map(handleApi)
-    ).then(function (apiData) {
+    ).then((apiData) => {
       res.status(200).send(JSON.stringify(apiData));
-    }).catch(function (error) {
+    }).catch((error) => {
       var msg = 'Error handling APIs: ' + error.message;
-      logger.error(msg);
       res.status(500).send(msg);
     });
-  }).catch(function (error) {
+  }).catch((error) => {
     var msg = 'Error fetching discovery list: ' + error.message;
-    logger.error(msg);
     res.status(500).send(msg);
   });
-});
-
-// Start the server
-var server = app.listen(process.env.PORT || '8080', function () {
-  console.log('App listening on port %s', server.address().port);
-  console.log('Press Ctrl+C to quit.');
 });
